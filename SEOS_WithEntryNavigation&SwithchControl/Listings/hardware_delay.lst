@@ -1,0 +1,84 @@
+C51 COMPILER V9.54   HARDWARE_DELAY                                                        12/15/2015 17:47:25 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE HARDWARE_DELAY
+OBJECT MODULE PLACED IN .\Objects\hardware_delay.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE hardware_delay.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Lis
+                    -tings\hardware_delay.lst) TABS(2) OBJECT(.\Objects\hardware_delay.obj)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "PORT.h"
+   3          #include "hardware_delay.h"
+   4          
+   5          
+   6          // ***** Caution: Uses Timer1 *******//
+   7          void DELAY_1ms_T1(uint16_t duration)
+   8          {
+   9   1         // Configure Timer 1 as a 16-bit timer 
+  10   1         TMOD &= 0x0F; // Clear all T1 bits (T0 left unchanged)
+  11   1         TMOD |= 0x10; // Set required T1 bits (T0 left unchanged) 
+  12   1      
+  13   1          
+  14   1         ET1 = 0;  // No interupts
+  15   1            
+  16   1         do
+  17   1         {
+  18   2           // Values for 1 ms delay
+  19   2            TH1 = Timer_Reload_1ms_THx;  // Timer 0 initial value (High Byte)
+  20   2            TL1 = Timer_Reload_1ms_TLx;  // Timer 0 initial value (Low Byte)
+  21   2      
+  22   2            TF1 = 0;          // Clear overflow flag
+  23   2            TR1 = 1;          // Start timer 0
+  24   2      
+  25   2            while (TF1 == 0); // Loop until Timer 0 overflows (TF0 == 1)
+  26   2      
+  27   2            TR1 = 0;          // Stop Timer 0
+  28   2          duration--;
+  29   2        }while(duration>0);
+  30   1      }
+  31          // ***** Caution: Uses Timer1 *******//
+  32          void DELAY_100us_T1(uint16_t duration)
+  33          {
+  34   1         // Configure Timer 1 as a 16-bit timer 
+  35   1         TMOD &= 0x0F; // Clear all T1 bits (T0 left unchanged)
+  36   1         TMOD |= 0x10; // Set required T1 bits (T0 left unchanged) 
+  37   1      
+  38   1          
+  39   1         ET1 = 0;  // No interupts
+  40   1            
+  41   1         do
+  42   1         {
+  43   2           // Values for 1 ms delay
+  44   2            TH1 = Timer_Reload_100us_THx;  // Timer 0 initial value (High Byte)
+  45   2            TL1 = Timer_Reload_100us_TLx;  // Timer 0 initial value (Low Byte)
+  46   2      
+  47   2            TF1 = 0;          // Clear overflow flag
+  48   2            TR1 = 1;          // Start timer 0
+  49   2      
+  50   2            while (TF1 == 0); // Loop until Timer 0 overflows (TF0 == 1)
+  51   2      
+  52   2            TR1 = 0;          // Stop Timer 0
+  53   2          duration--;
+  54   2        }while(duration>0);
+C51 COMPILER V9.54   HARDWARE_DELAY                                                        12/15/2015 17:47:25 PAGE 2   
+
+  55   1      }
+  56          
+  57          
+  58          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     75    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

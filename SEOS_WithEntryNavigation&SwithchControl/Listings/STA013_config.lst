@@ -1,0 +1,170 @@
+C51 COMPILER V9.54   STA013_CONFIG                                                         12/15/2015 17:47:25 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE STA013_CONFIG
+OBJECT MODULE PLACED IN .\Objects\STA013_config.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE STA013_config.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\List
+                    -ings\STA013_config.lst) TABS(2) OBJECT(.\Objects\STA013_config.obj)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "PORT.H"
+   3          #include "I2C.h"
+   4          #include "STA013_Config.h"
+   5          #include <stdio.h>
+   6          
+   7          
+   8          
+   9          /***********************************************************************
+  10          DESC:    Initializes the STA013 with the following steps:
+  11                   Applies a hardware reset signal, checks the ID register for an 0xAC
+  12               response and then sends the configuration data.
+  13          RETURNS: error flag
+  14          CAUTION: 
+  15                    
+  16          ************************************************************************/
+  17          
+  18          
+  19          uint8_t STA013_init(void)
+  20          {
+  21   1         uint8_t idata error_flag, timeout;
+  22   1         uint8_t idata send[3], rcv[3];
+  23   1         uint8_t * config_data_p;
+  24   1         uint16_t idata j;
+  25   1      
+  26   1         uint8_t code STA_cfg_addr[18]={0x54, 0x55,  6, 11,  82,  81, 101, 100, 80, 97, 0x05, 0x0d, 0x18, 0x0c, 
+             -0x46, 0x48, 0x7d, 0x72};
+  27   1         uint8_t code STA_cfg_data[18]={0x07, 0x10,  9,  2, 184,   0,   0,   0,  6,  5, 0xa1, 0x00, 0x04, 0x05, 
+             -0x07, 0x07, 0x00, 0x01};
+  28   1      
+  29   1      
+  30   1      
+  31   1         STA013_RESET=0;
+  32   1      
+  33   1         send[0]=0x01;   // address of the ID reg.  
+  34   1         timeout=50;
+  35   1      
+  36   1         STA013_RESET=1;    // make STA013 active
+  37   1         P3_4=0;
+  38   1         do
+  39   1         {
+  40   2            error_flag=I2C_Write(STA013,1,send);
+  41   2            timeout--;
+  42   2            if(timeout==0) AMBERLED=0;
+  43   2         }while((error_flag!=no_errors)&&(timeout!=0));
+  44   1         if(timeout!=0)
+  45   1         {
+  46   2            timeout=50;
+  47   2          do
+  48   2          {
+  49   3              error_flag=I2C_Read(STA013,1,rcv);
+  50   3              timeout--;
+  51   3          }while((error_flag!=no_errors)&&(timeout!=0));
+  52   2          if(timeout!=0)
+C51 COMPILER V9.54   STA013_CONFIG                                                         12/15/2015 17:47:25 PAGE 2   
+
+  53   2          {
+  54   3               printf("Output from ID register: %2.2bX \n\r",rcv[0]);
+  55   3          }
+  56   2         }
+  57   1         P3_4=1;
+  58   1      
+  59   1      
+  60   1      
+  61   1         if(rcv[0]==0xAC)
+  62   1         {
+  63   2           send[0]=0x71;
+  64   2           error_flag=I2C_Write(STA013,1,send);
+  65   2           error_flag=I2C_Read(STA013,1,rcv);
+  66   2           printf("STA013 SoftVersion: %2.2bX \n\r",rcv[0]); 
+  67   2           j=0;
+  68   2           config_data_p=&CONFIG;  // point to STA013 configuration file
+  69   2           do
+  70   2           {
+  71   3              send[0]=config_data_p[j];
+  72   3              j++;
+  73   3              send[1]=config_data_p[j];
+  74   3              j++;
+  75   3             // printf("DB %bu, %bu\n",send[0],send[1]);
+  76   3              if(send[0]!=0xFF)
+  77   3              {
+  78   4                
+  79   4                 timeout=50;
+  80   4                 do
+  81   4                 {
+  82   5                     error_flag=I2C_Write(STA013,2,send);
+  83   5                     timeout--;
+  84   5                     if(timeout==0) AMBERLED=0;
+  85   5                 }while((error_flag!=no_errors)&&(timeout!=0));
+  86   4              }
+  87   3           }while((send[0]!=0xFF) && (timeout!=0));
+  88   2           printf("First configuration file sent...\n\r");
+  89   2           if((timeout==0))
+  90   2             printf("Timeout exit \n\r");
+  91   2           printf("Number of values written: %d \n\r",j>>1);
+  92   2           j=0;
+  93   2           config_data_p=&CONFIG2;  // point to STA013 configuration file
+  94   2           do
+  95   2           {
+  96   3              send[0]=*(config_data_p+j);
+  97   3              j++;
+  98   3              send[1]=*(config_data_p+j);
+  99   3              j++;
+ 100   3              //printf("DB %bu, %bu\n",send[0],send[1]);
+ 101   3              if(send[0]!=0xFF)
+ 102   3              {
+ 103   4                 timeout=50;
+ 104   4                 do
+ 105   4                 {
+ 106   5                     error_flag=I2C_Write(STA013,2,send);
+ 107   5                     timeout--;
+ 108   5                     if(timeout==0) AMBERLED=0;
+ 109   5                 }while((error_flag!=no_errors)&&(timeout!=0));
+ 110   4              }
+ 111   3           }while((send[0]!=0xFF) && (timeout!=0));
+ 112   2           printf("Second configuration file sent...\n\r");
+ 113   2               if((timeout==0))
+ 114   2                printf("Timeout exit \n\r");
+C51 COMPILER V9.54   STA013_CONFIG                                                         12/15/2015 17:47:25 PAGE 3   
+
+ 115   2           printf("Number of values written: %d \n\r",j>>1);
+ 116   2           send[0]=0x71;
+ 117   2           error_flag=I2C_Write(STA013,1,send);
+ 118   2           error_flag=I2C_Read(STA013,1,rcv);
+ 119   2           printf("STA013 SoftVersion: %2.2bX \n\r",rcv[0]);            
+ 120   2              
+ 121   2           for(j=0;j<18;j++)
+ 122   2          {
+ 123   3            send[0]=STA_cfg_addr[j];
+ 124   3            send[1]=STA_cfg_data[j];
+ 125   3              timeout=50;
+ 126   3              do
+ 127   3              {
+ 128   4                  error_flag=I2C_Write(STA013,2,send);
+ 129   4                  timeout--;
+ 130   4                  if(timeout==0) AMBERLED=0;
+ 131   4              }while((error_flag!=no_errors)&&(timeout!=0));
+ 132   3              printf("Sent to STA013: %2.2bX  %2.2bX \n\r",send[0],send[1]);
+ 133   3              error_flag=I2C_Write(STA013,1,send);
+ 134   3              error_flag=I2C_Read(STA013,1,rcv);
+ 135   3              printf("Output from register: %2.2bX  %2.2bX %2.2bX \n\r",send[0],rcv[0],error_flag);
+ 136   3          }
+ 137   2            printf("Configuration Complete\n\r");
+ 138   2         }      
+ 139   1         return error_flag;
+ 140   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    729    ----
+   CONSTANT SIZE    =    326    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       3
+   IDATA SIZE       =   ----      10
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

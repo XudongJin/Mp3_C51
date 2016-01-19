@@ -1,0 +1,542 @@
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE FILE_SYSTEM_V2
+OBJECT MODULE PLACED IN .\Objects\File_System_v2.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE File_System_v2.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Lis
+                    -tings\File_System_v2.lst) TABS(2) OBJECT(.\Objects\File_System_v2.obj)
+
+line level    source
+
+   1          #include "AT89C51RC2.h"
+   2          #include <stdio.h>
+   3          #include "main.h"
+   4          #include "PORT.H"
+   5          #include "UART.h"
+   6          #include "SPI.h"
+   7          #include "SDCard.h"
+   8          #include "File_System_v2.h"
+   9          #include "print_bytes.h"
+  10          #include "Directory_Functions_struct.h"
+  11          #include "Read_Sector.h"
+  12          #include "Play_Song.h"
+  13          
+  14          
+  15          extern FS_values_t idata Drive_values;
+  16          
+  17          // Read Value Functions
+  18          
+  19          /***********************************************************************
+  20          DESC: Reads a specified byte from a block of memory 
+  21          INPUT: Offset to the byte, Starting address of the block of memory
+  22          RETURNS: uint8_t specifed byte
+  23          CAUTION: 
+  24          ************************************************************************/
+  25          uint8_t read8(uint16_t offset, uint8_t * array_name)
+  26          {
+  27   1         uint8_t  return_val;
+  28   1         offset&=0x1FF;  // limit offset to 0 to 511
+  29   1         return_val=*(array_name+offset);
+  30   1         return return_val;
+  31   1      }
+  32          
+  33          /***********************************************************************
+  34          DESC: Reads a specified integer (stored little endian) from a block of memory 
+  35          INPUT: Offset to the LSB of the integer, Starting address of the block of memory
+  36          RETURNS: uint16_t specfied integer
+  37          CAUTION: 
+  38          ************************************************************************/
+  39          
+  40          uint16_t read16(uint16_t offset, uint8_t * array_name)
+  41          {
+  42   1         uint16_t  return_val,temp;
+  43   1         offset&=0x1FF;  // limit offset to 0 to 511
+  44   1         return_val=0;
+  45   1         return_val=*(array_name+offset+1);
+  46   1         return_val=return_val<<8;
+  47   1         temp=*(array_name+offset);
+  48   1         return_val|=temp;
+  49   1         return return_val;
+  50   1      }
+  51          
+  52          /***********************************************************************
+  53          DESC: Reads a specified word (stored little endian) from a block of memory 
+  54          INPUT: Offset to the LSB of the word, Starting address of the block of memory
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 2   
+
+  55          RETURNS: uint32_t specfied word
+  56          CAUTION: 
+  57          ************************************************************************/
+  58          
+  59          uint32_t read32(uint16_t offset, uint8_t * array_name)
+  60          {
+  61   1         uint32_t  return_val;
+  62   1         uint8_t  temp, i;
+  63   1         return_val=0;
+  64   1         offset&=0x1FF;  // limit offset to 0 to 511
+  65   1         for(i=0;i<4;i++)
+  66   1         {   
+  67   2             temp=*(array_name+offset+(3-i));
+  68   2             return_val=return_val<<8;
+  69   2             return_val|=temp;
+  70   2         }
+  71   1         return return_val;
+  72   1      }
+  73          
+  74          /***********************************************************************
+  75          DESC: Determines FAT type, Start of the FAT, Root Directory Sector
+  76                and Start of Data for an SD card
+  77          INPUT: Start of a block of memory in xdata that can be used 
+  78                 to read blocks from the SD card
+  79          RETURNS: uint8_t error code    Creates globals in idata for: 
+  80          idata uint32_t FATSz, RelSec, RootClus, FirstDataSec, StartofFAT;
+  81          idata uint16_t BytesPerSec, BytesPerSecM, RootEntCnt;
+  82          idata uint8_t SecPerClus, FATtype, SecShift;
+  83          
+  84          CAUTION: 
+  85          ************************************************************************/
+  86          
+  87          uint8_t Mount_Drive(uint8_t xdata * array_in)
+  88          {
+  89   1        uint32_t idata TotSec, DataSec, CntClus,MBR_RelSec, FATSz, RootClus;
+  90   1        uint16_t idata RsvdSecCnt, RootEntCnt, temp16;
+  91   1        uint8_t idata NumFAT, temp8;
+  92   1        uint8_t xdata * values;
+  93   1        FS_values_t * Drive_p;
+  94   1      
+  95   1        Drive_p=Export_Drive_values();
+  96   1         
+  97   1         values=array_in;
+  98   1         printf("Locating Boot Sector...\n\r");
+  99   1         Read_Sector(0,512,values);
+ 100   1         temp8=read8(0,values);
+ 101   1         if((temp8!=0xEB)&&(temp8!=0xE9))
+ 102   1         {
+ 103   2            MBR_RelSec=read32(MBR_RelSectors,values);
+ 104   2          Read_Sector(MBR_RelSec,512,values);
+ 105   2          printf("Relative Sectors = %ld\n\r",MBR_RelSec);
+ 106   2          temp8=read8(0,values);
+ 107   2         }
+ 108   1         if((temp8!=0xEB)&&(temp8!=0xE9))
+ 109   1         {
+ 110   2            printf("Disk Error!\n\r");
+ 111   2          return Disk_Error;
+ 112   2         }
+ 113   1         Drive_p->BytesPerSec=read16(BPB_BytesPerSector,values);
+ 114   1         Drive_p->BytesPerSecShift=0;
+ 115   1         temp16=Drive_p->BytesPerSec;
+ 116   1         while(temp16!=0x01)
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 3   
+
+ 117   1         {
+ 118   2            Drive_p->BytesPerSecShift++;
+ 119   2            temp16=temp16>>1;
+ 120   2         }
+ 121   1         Drive_p->SecPerClus=read8(BPB_SectorsPerCluster,values);
+ 122   1         RsvdSecCnt=read16(BPB_RsvdSectorCount,values);
+ 123   1         NumFAT=read8(BPB_NumberFATs,values);
+ 124   1         RootEntCnt=read16(BPB_RootEntryCount,values);
+ 125   1         TotSec=read16(BPB_TotalSectors16,values);
+ 126   1         if(TotSec==0) TotSec=read32(BPB_TotalSectors32,values);
+ 127   1         FATSz=read16(BPB_FATsize16,values);
+ 128   1         if(FATSz==0)
+ 129   1         {
+ 130   2          FATSz=read32(BPB_FATsize32,values);
+ 131   2            RootClus=read32(BPB_RootCluster,values);
+ 132   2         }
+ 133   1         Drive_p->RootDirSecs=((RootEntCnt * 32) + (Drive_p->BytesPerSec - 1))/Drive_p->BytesPerSec;
+ 134   1         DataSec=TotSec-(RsvdSecCnt+(NumFAT*FATSz)+Drive_p->RootDirSecs);
+ 135   1         CntClus=DataSec/Drive_p->SecPerClus;
+ 136   1         Drive_p->StartofFAT=RsvdSecCnt+MBR_RelSec;
+ 137   1         Drive_p->FirstDataSec=Drive_p->StartofFAT+(NumFAT*FATSz)+Drive_p->RootDirSecs;
+ 138   1         if(CntClus<65525)
+ 139   1         {
+ 140   2           Drive_p->FATtype=FAT16;
+ 141   2         Drive_p->FATshift=FAT16_shift;
+ 142   2         printf("FAT16 Detected...\n\r");
+ 143   2         Drive_p->FirstRootDirSec=Drive_p->StartofFAT+(NumFAT*FATSz);
+ 144   2      
+ 145   2         }
+ 146   1         else
+ 147   1         {
+ 148   2           Drive_p->FATtype=FAT32;
+ 149   2         Drive_p->FATshift=FAT32_shift;
+ 150   2         printf("FAT32 Detected...\n\r");
+ 151   2           Drive_p->FirstRootDirSec=((RootClus-2)*Drive_p->SecPerClus)+Drive_p->FirstDataSec;
+ 152   2         }
+ 153   1         return No_Disk_Error;
+ 154   1      }
+ 155          
+ 156          
+ 157          /***********************************************************************
+ 158          DESC: Calculates the First Sector of a given Cluster 
+ 159          INPUT: uint32_t Cluster number
+ 160          RETURNS: uint32_t sector number 
+ 161          CAUTION: 
+ 162          ************************************************************************/
+ 163          uint32_t First_Sector (uint32_t Cluster_num)
+ 164          {
+ 165   1         uint32_t Sector_num;
+ 166   1       //  FS_values_t * Drive_p;
+ 167   1      
+ 168   1        // Drive_p=Export_Drive_values();
+ 169   1         if(Cluster_num==0) 
+ 170   1         {
+ 171   2             Sector_num=Drive_values.FirstRootDirSec;
+ 172   2         }
+ 173   1         else
+ 174   1         {
+ 175   2            // Sector_num=((Cluster_num-2)*Drive_p->SecPerClus)+Drive_p->FirstDataSec;
+ 176   2           Sector_num=((Cluster_num-2)*Drive_values.SecPerClus)+Drive_values.FirstDataSec;
+ 177   2         }
+ 178   1         return Sector_num;
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 4   
+
+ 179   1      }
+ 180          
+ 181          
+ 182          
+ 183          /***********************************************************************
+ 184          DESC: Prints all short file name entries for a given directory 
+ 185          INPUT: Starting Sector of the directory and the pointer to a 
+ 186          block of memory in xdata that can be used to read blocks from the SD card
+ 187          RETURNS: uint16_t number of entries found in the directory
+ 188          CAUTION: Supports FAT16, SD_shift must be set before using this function
+ 189          ************************************************************************/
+ 190          
+ 191          /*
+ 192          
+ 193          uint16_t  Print_Directory(uint32_t Sector_num, uint8_t xdata * array_in)
+ 194          { 
+ 195             uint32_t Sector, max_sectors;
+ 196             uint16_t i, entries;
+ 197             uint8_t temp8, j, attr, out_val, error_flag;
+ 198             uint8_t * values;
+ 199          
+ 200             values=array_in;
+ 201             entries=0;
+ 202             i=0;
+ 203             if (Sector_num<Drive_values.FirstDataSec)  // included for FAT16 compatibility
+ 204             { 
+ 205                max_sectors=Drive_values.RootDirSecs;   // maximum sectors in a FAT16 root directory
+ 206             }
+ 207             else
+ 208             {
+ 209                max_sectors=Drive_values.SecPerClus;
+ 210             }
+ 211             Sector=Sector_num;
+ 212             AMBERLED=0;
+ 213             nCS0=0;
+ 214             error_flag=SEND_COMMAND(17,(Sector<<Drive_values.SDtype));
+ 215             if(error_flag==no_errors) error_flag=read_block(values,512);
+ 216             nCS0=1;
+ 217             AMBERLED=1;
+ 218             if(error_flag==no_errors)
+ 219             {
+ 220                    YELLOWLED=0;
+ 221               do
+ 222               {
+ 223           
+ 224                temp8=read8(0+i,values);  // read first byte to see if empty
+ 225                  if((temp8!=0xE5)&&(temp8!=0x00))
+ 226                {  
+ 227                   attr=read8(0x0b+i,values);
+ 228                  YELLOWLED=1;
+ 229                 if((attr&0x0E)==0)   // if hidden, system or Vol_ID bit is set do not print
+ 230                 {
+ 231                    entries++;
+ 232                  printf("%5d. ",entries);  // print entry number with a fixed width specifier
+ 233                    for(j=0;j<8;j++)
+ 234                  {
+ 235                     out_val=read8(i+j,values);   // print the 8 byte name
+ 236                     putchar(out_val);
+ 237                  }
+ 238                        if((attr&0x10)==0x10)  // indicates directory
+ 239                  {
+ 240                     for(j=8;j<11;j++)
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 5   
+
+ 241                     {
+ 242                        out_val=read8(i+j,values);
+ 243                        putchar(out_val);
+ 244                     }
+ 245                     printf("[DIR]\n");
+ 246                  }
+ 247                  else       // print a period and the three byte extension for a file
+ 248                  {
+ 249                     putchar(0x2E);       
+ 250                     for(j=8;j<11;j++)
+ 251                     {
+ 252                        out_val=read8(i+j,values);
+ 253                        putchar(out_val);
+ 254                     }
+ 255                     putchar(0x0d);
+ 256                           putchar(0x0a);
+ 257                  }
+ 258                  }
+ 259          
+ 260              }
+ 261              i=i+32;  // next entry
+ 262          
+ 263              if(i>510)
+ 264              {
+ 265                Sector++;
+ 266                    if((Sector-Sector_num)<max_sectors)
+ 267                {
+ 268                        nCS0=0;
+ 269                        error_flag=SEND_COMMAND(17,(Sector<<Drive_values.SDtype));
+ 270                        if(error_flag==no_errors) error_flag=read_block(values,512);
+ 271                  if(error_flag!=no_errors)
+ 272                    {
+ 273                      entries=0;   // no entries found indicates disk read error
+ 274                    temp8=0;     // forces a function exit
+ 275                    }
+ 276                          nCS0=1;
+ 277                    i=0;
+ 278                }
+ 279                else
+ 280                {
+ 281                  entries=entries|more_entries;  // set msb to indicate more entries in another cluster
+ 282                  temp8=0;                       // forces a function exit
+ 283                }
+ 284              }
+ 285                 
+ 286              }while(temp8!=0);
+ 287            }
+ 288            else
+ 289            {
+ 290               entries=0;    // no entries found indicates disk read error
+ 291            }
+ 292              return entries;
+ 293           }
+ 294          
+ 295           */
+ 296          
+ 297          /***********************************************************************
+ 298          DESC: Uses the same method as Print_Directory to locate short file names,
+ 299                but locates a specified entry and returns and cluster  
+ 300          INPUT: Starting Sector of the directory, an entry number and a pointer to a 
+ 301          block of memory in xdata that can be used to read blocks from the SD card
+ 302          RETURNS: uint32_t with cluster in lower 28 bits.  Bit 28 set if this is 
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 6   
+
+ 303                   a directory entry, clear for a file.  Bit 31 set for error.
+ 304          CAUTION: 
+ 305          ************************************************************************/
+ 306          
+ 307          /*
+ 308          
+ 309          uint32_t Read_Dir_Entry(uint32_t Sector_num, uint16_t Entry, uint8_t xdata * array_in)
+ 310          { 
+ 311             uint32_t Sector, max_sectors, return_clus;
+ 312             uint16_t i, entries;
+ 313             uint8_t temp8, attr, error_flag;
+ 314             uint8_t * values;
+ 315          
+ 316             values=array_in;
+ 317             entries=0;
+ 318             i=0;
+ 319             return_clus=0;
+ 320             if (Sector_num<Drive_values.FirstDataSec)  // included for FAT16 compatibility
+ 321             { 
+ 322                max_sectors=Drive_values.RootDirSecs;   // maximum sectors in a FAT16 root directory
+ 323             }
+ 324             else
+ 325             {
+ 326                max_sectors=Drive_values.SecPerClus;
+ 327             }
+ 328             Sector=Sector_num;
+ 329             nCS0=0;
+ 330             error_flag=SEND_COMMAND(17,(Sector<<Drive_values.SDtype));
+ 331             if(error_flag==no_errors)  error_flag=read_block(values,512);
+ 332             nCS0=1;
+ 333             if(error_flag==no_errors)
+ 334             {
+ 335               do
+ 336               {
+ 337                  temp8=read8(0+i,values);  // read first byte to see if empty
+ 338                  if((temp8!=0xE5)&&(temp8!=0x00))
+ 339                {  
+ 340                   attr=read8(0x0b+i,values);
+ 341                 if((attr&0x0E)==0)    // if hidden do not print
+ 342                 {
+ 343                    entries++;
+ 344                        if(entries==Entry)
+ 345                        {
+ 346                    if(Drive_values.FATtype==FAT32)
+ 347                          {
+ 348                             return_clus=read8(21+i,values);
+ 349                             return_clus&=0x0F;            // makes sure upper four bits are clear
+ 350                     return_clus=return_clus<<8;
+ 351                             return_clus|=read8(20+i,values);
+ 352                             return_clus=return_clus<<8;
+ 353                          }
+ 354                          return_clus|=read8(27+i,values);
+ 355                    return_clus=return_clus<<8;
+ 356                          return_clus|=read8(26+i,values);
+ 357                    attr=read8(0x0b+i,values);
+ 358                    if(attr&0x10) return_clus|=directory_bit;
+ 359                          temp8=0;    // forces a function exit
+ 360                        }
+ 361                        
+ 362                 }
+ 363                  }
+ 364              i=i+32;  // next entry
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 7   
+
+ 365              if(i>510)
+ 366              {
+ 367                 Sector++;
+ 368                 if((Sector-Sector_num)<max_sectors)
+ 369                 {
+ 370                        nCS0=0;
+ 371                        error_flag=SEND_COMMAND(17,(Sector<<Drive_values.SDtype));
+ 372                        if(error_flag==no_errors)  error_flag=read_block(values,512);
+ 373                        nCS0=1;
+ 374                  if(error_flag!=no_errors)
+ 375                  {
+ 376                     return_clus=no_entry_found;
+ 377                           temp8=0; 
+ 378                  }
+ 379                  i=0;
+ 380                 }
+ 381                 else
+ 382                 {
+ 383                  temp8=0;                       // forces a function exit
+ 384                 }
+ 385              }
+ 386                  
+ 387             }while(temp8!=0);
+ 388             }
+ 389             else
+ 390             {
+ 391             return_clus=no_entry_found;
+ 392             }
+ 393             if(return_clus==0) return_clus=no_entry_found;
+ 394             return return_clus;
+ 395          }
+ 396          
+ 397          */
+ 398          
+ 399          
+ 400          /***********************************************************************
+ 401          DESC: Finds the next cluster number of a file in the FAT with an input
+ 402                parameter of the current cluster number.
+ 403          INPUT: Current cluster number.
+ 404          RETURNS: Next Cluster number from the FAT
+ 405          CAUTION: 
+ 406          ************************************************************************/
+ 407          
+ 408          
+ 409          uint32_t Find_Next_Clus(uint32_t Cluster_num, uint8_t xdata * array_name)
+ 410          {
+ 411   1         uint32_t Sector, return_clus;
+ 412   1         uint16_t FAToffset;
+ 413   1         uint8_t * values;
+ 414   1       //  FS_values_t * Drive_p;
+ 415   1      
+ 416   1        // Drive_p=Export_Drive_values();
+ 417   1      //Drive_values
+ 418   1         values=array_name;
+ 419   1         Sector=(Cluster_num>>(Drive_values.BytesPerSecShift-Drive_values.FATshift))+Drive_values.StartofFAT;
+ 420   1          Read_Sector(Sector, Drive_values.BytesPerSec,values);
+ 421   1           FAToffset=(uint16_t)((Cluster_num<<(Drive_values.FATshift))&(Drive_values.BytesPerSec-1));
+ 422   1         if(Drive_values.FATtype==FAT32)    // FAT32
+ 423   1         {
+ 424   2             return_clus=(read32(FAToffset,values)&0x0FFFFFFF);
+ 425   2         }
+ 426   1         else if(Drive_values.FATtype==FAT16)    // FAT16
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 8   
+
+ 427   1         {
+ 428   2             return_clus=(uint32_t)(read16(FAToffset,values));
+ 429   2         }
+ 430   1        
+ 431   1       ///  Sector=(Cluster_num>>(Drive_p->BytesPerSecShift-Drive_p->FATshift))+Drive_p->StartofFAT;
+ 432   1       //  Read_Sector(Sector, Drive_p->BytesPerSec,values);
+ 433   1        // FAToffset=(uint16_t)((Cluster_num<<Drive_p->FATshift)&(Drive_p->BytesPerSec-1));
+ 434   1      //   if(Drive_p->FATtype==FAT32)    // FAT32
+ 435   1      //   {
+ 436   1      //       return_clus=(read32(FAToffset,values)&0x0FFFFFFF);
+ 437   1      //   }
+ 438   1      //   else if(Drive_p->FATtype==FAT16)    // FAT16
+ 439   1      //   {
+ 440   1      //       return_clus=(uint32_t)(read16(FAToffset,values));
+ 441   1      //   }
+ 442   1         return return_clus;
+ 443   1      }
+ 444             
+ 445          
+ 446          
+ 447          
+ 448          /***********************************************************************
+ 449          DESC: Prints the sectors of a file until the user hits X
+ 450                Prints the Cluster Number and Sector number of each sector as well
+ 451          INPUT: Starting Cluster of the file and the start of a 
+ 452          block of memory in xdata that can be used to read blocks from the SD card
+ 453          RETURNS: uint8_t 0
+ 454          CAUTION: 
+ 455          ************************************************************************/
+ 456          
+ 457          
+ 458          //uint8_t Open_File(uint32_t Cluster_num, uint8_t xdata * array_in)
+ 459          //{
+ 460          //   uint32_t Sector, SecOffset;
+ 461          //   uint16_t entries;
+ 462          //   uint8_t temp8;
+ 463          //   uint8_t * values;
+ 464          //   FS_values_t * Drive_p;
+ 465          
+ 466          //   Drive_p=Export_Drive_values();
+ 467          //   values=array_in;
+ 468          //   entries=0;
+ 469          //   SecOffset=0;
+ 470          //   
+ 471          //   
+ 472          //   do
+ 473          //   {
+ 474          //      if(SecOffset==0) Sector=((Cluster_num-2)*Drive_p->SecPerClus)+Drive_p->FirstDataSec;
+ 475          //      printf("Cluster#: %9lu,  Sector#: %9lu,  SecOffset: %lu\n",Cluster_num,(Sector+SecOffset),SecOffse
+             -t);
+ 476          //      Read_Sector((Sector+SecOffset), Drive_p->BytesPerSec, values);      
+ 477          //      print_memory(512,values);
+ 478          //      SecOffset++;
+ 479          //      if(SecOffset==Drive_p->SecPerClus)
+ 480          //      {
+ 481          //         Cluster_num=Find_Next_Clus(Cluster_num,values);
+ 482          //         SecOffset=0;
+ 483          //      }
+ 484          //      printf("Press Space to Continue or X to exit\n");
+ 485          //      do
+ 486          //      {
+ 487          //        temp8=getchar();
+C51 COMPILER V9.54   FILE_SYSTEM_V2                                                        12/15/2015 17:47:23 PAGE 9   
+
+ 488          //      }while((temp8!=0x20)&&(temp8!=0x58)&&(temp8!='P'));
+ 489          //      if(temp8=='P')
+ 490          //      {
+ 491          //         Play_Song(Cluster_num);
+ 492          //      }
+ 493          //   }while(temp8==0x20);
+ 494          //   putchar(0x0d);
+ 495          //   putchar(0x0a);
+ 496          //return 0;
+ 497          //}
+ 498          
+ 499          
+ 500          
+ 501          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1443    ----
+   CONSTANT SIZE    =    105    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      45
+   IDATA SIZE       =   ----      32
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

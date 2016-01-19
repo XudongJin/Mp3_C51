@@ -1,0 +1,85 @@
+C51 COMPILER V9.54   PRINT_BYTES                                                           12/12/2015 18:26:46 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE PRINT_BYTES
+OBJECT MODULE PLACED IN .\Objects\print_bytes.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE print_bytes.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listin
+                    -gs\print_bytes.lst) TABS(2) OBJECT(.\Objects\print_bytes.obj)
+
+line level    source
+
+   1          #include <stdio.h>
+   2          #include "main.h"
+   3          #include "print_bytes.h"
+   4          
+   5          
+   6          
+   7          
+   8          
+   9          
+  10          /***********************************************************************
+  11          DESC:    Prints 8 bytes in Hexadecimal and then ASCII
+  12          INPUT: Pointer to an array of eight bytes
+  13          RETURNS: nothing
+  14          CAUTION: 
+  15          ************************************************************************/
+  16          void print_16bytes(uint8_t * array_in)
+  17          {
+  18   1         uint8_t * input;
+  19   1         uint8_t index, dat;
+  20   1         input = array_in;
+  21   1         printf("%p ",input);
+  22   1         for (index=0;index<16;index++)
+  23   1         {
+  24   2            dat=*(input+index);
+  25   2            printf("%2.2bX ",dat);
+  26   2         }
+  27   1         for (index=0;index<16;index++)
+  28   1         { 
+  29   2            dat=*(input+index);
+  30   2            if (dat<32 || dat>127) dat=46;
+  31   2            putchar(dat);
+  32   2         }
+  33   1         putchar(CR);
+  34   1         putchar(LF);
+  35   1      }
+  36          
+  37          
+  38          /***********************************************************************
+  39          DESC: Prints an array from memory in Hexadecimal and then ASCII
+  40          INPUT: Pointer to an array, number of bytes to print
+  41          RETURNS: nothing
+  42          CAUTION: 
+  43          ************************************************************************/
+  44          void print_memory(uint16_t number_of_bytes, uint8_t * array_in)
+  45          {
+  46   1         uint8_t * input;
+  47   1         uint16_t i;
+  48   1         input = array_in;
+  49   1         i = (uint16_t) input;
+  50   1         i &= 0x000f;
+  51   1         input = input - i;
+  52   1         printf("Addr.   0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n\r");
+  53   1         do
+  54   1         {
+C51 COMPILER V9.54   PRINT_BYTES                                                           12/12/2015 18:26:46 PAGE 2   
+
+  55   2            print_16bytes(input);
+  56   2            input+=16;
+  57   2         }while(input<(array_in+number_of_bytes));
+  58   1      }
+  59              
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    215    ----
+   CONSTANT SIZE    =     69    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      13
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

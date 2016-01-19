@@ -1,0 +1,118 @@
+C51 COMPILER V9.54   SWITCH                                                                12/15/2015 17:47:26 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE SWITCH
+OBJECT MODULE PLACED IN .\Objects\Switch.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE Switch.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\Sw
+                    -itch.lst) TABS(2) OBJECT(.\Objects\Switch.obj)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "PORT.H"
+   3          #include "SEOS.h"
+   4          #include "Switch.h"
+   5          
+   6          
+   7          Sw_global_t  stop_button,play_button,scrollup_button,scrolldown_button;
+   8          
+   9          uint8_t  DEBOUNCE_TIME_G;
+  10          
+  11          void Switch_init(){
+  12   1        
+  13   1          DEBOUNCE_TIME_G=0;
+  14   1          stop_button.sw_state = SW_NOT_PRESSED;
+  15   1          stop_button.debounce_time=0;
+  16   1        
+  17   1          play_button.sw_state = SW_NOT_PRESSED;
+  18   1          play_button.debounce_time=0;
+  19   1        
+  20   1          scrollup_button.sw_state = SW_NOT_PRESSED;
+  21   1          scrollup_button.debounce_time=0;
+  22   1        
+  23   1          scrolldown_button.sw_state = SW_NOT_PRESSED;
+  24   1          scrolldown_button.debounce_time=0;
+  25   1        
+  26   1      }
+  27          
+  28          void Switch_Get_Input(uint8_t sw_mask ,Sw_global_t * sw_number)
+  29          {
+  30   1        switch(sw_number->sw_state)
+  31   1        {
+  32   2          case SW_NOT_PRESSED:
+  33   2          {
+  34   3            if((sw_mask & SWITCH_PORT)==0x00)
+  35   3            {
+  36   4              sw_number->sw_state = DEBOUNCE;
+  37   4              DEBOUNCE_TIME_G=0;
+  38   4              sw_number->debounce_time=DEBOUNCE_VALUE;
+  39   4              
+  40   4            }
+  41   3            break;
+  42   3          }
+  43   2          case DEBOUNCE:
+  44   2          {
+  45   3            DEBOUNCE_TIME_G+=(uint8_t)ISR_TICK;
+  46   3            if(DEBOUNCE_TIME_G>=(sw_number->debounce_time))
+  47   3            {
+  48   4              if((sw_mask & SWITCH_PORT)==0x00) 
+  49   4                sw_number->sw_state= SW_PRESSED;
+  50   4              else 
+  51   4                sw_number->sw_state = SW_NOT_PRESSED;
+  52   4              
+  53   4            }
+  54   3            break;
+C51 COMPILER V9.54   SWITCH                                                                12/15/2015 17:47:26 PAGE 2   
+
+  55   3          }
+  56   2          
+  57   2          case SW_PRESSED:
+  58   2          { 
+  59   3            //ACTION PERFORM()
+  60   3            sw_number->sw_state = SW_HELD;
+  61   3            break;
+  62   3          }
+  63   2        
+  64   2          case SW_HELD:
+  65   2          {
+  66   3      
+  67   3            if((sw_mask & SWITCH_PORT)==sw_mask)
+  68   3            { 
+  69   4                sw_number->sw_state = R_DEBOUNCE;
+  70   4                DEBOUNCE_TIME_G=0;
+  71   4            }
+  72   3            break;
+  73   3          }
+  74   2          
+  75   2          case R_DEBOUNCE:
+  76   2          {
+  77   3            DEBOUNCE_TIME_G+=(uint8_t)ISR_TICK;
+  78   3            if(DEBOUNCE_TIME_G>=(sw_number->debounce_time))
+  79   3            {
+  80   4      
+  81   4              if((sw_mask & SWITCH_PORT)==sw_mask)
+  82   4                sw_number->sw_state = SW_NOT_PRESSED;
+  83   4              else 
+  84   4                sw_number->sw_state= SW_HELD;
+  85   4              
+  86   4            }
+  87   3            break;
+  88   3          }
+  89   2        }
+  90   1        
+  91   1        
+  92   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    151    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      9    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

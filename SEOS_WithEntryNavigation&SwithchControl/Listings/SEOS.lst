@@ -1,0 +1,400 @@
+C51 COMPILER V9.54   SEOS                                                                  12/15/2015 17:47:22 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE SEOS
+OBJECT MODULE PLACED IN .\Objects\SEOS.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE SEOS.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\SEOS
+                    -.lst) TABS(2) OBJECT(.\Objects\SEOS.obj)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "PORT.H"
+   3          #include "SEOS.h"
+   4          #include "stdio.h"
+   5          #include "hardware_delay.h"
+   6          #include "LCD_Routines.h"
+   7          #include "SPI.h"
+   8          #include "File_System_v2.h"
+   9          #include "Read_Sector.h"
+  10          #include "I2C.h"
+  11          #include "STA013_Config.h"
+  12          #include "Switch.h"
+  13          
+  14          extern Sw_global_t  stop_button,play_button,scrollup_button,scrolldown_button;
+  15          
+  16          extern uint8_t xdata buf1[512];
+  17          extern uint8_t xdata buf2[512]; 
+  18          
+  19          Mp3_State_t   state_g;
+  20          Play_State_t  play_status_g;
+  21          uint8_t  send_val[2];
+  22          uint32_t  sector_base_g,sector_offset_g,cluster_g;
+  23          uint16_t  index1, index2;
+  24          uint8_t   temp8;
+  25          
+  26          
+  27          void Timer2_Interrupt_Init(){
+  28   1        
+  29   1      
+  30   1        TH2 = (uint8_t)Timer2_Reload_H;
+  31   1        TL2 = (uint8_t)Timer2_Reload_L;
+  32   1        RCAP2H = (uint8_t)Timer2_Reload_H;
+  33   1        RCAP2L = (uint8_t)Timer2_Reload_L;
+  34   1      
+  35   1        
+  36   1        
+  37   1        ET2=1; // Enable Timer2 Interrupt
+  38   1        EA=1;  // Enable Interrupt
+  39   1        TR2=1;  //Start Timer2
+  40   1        
+  41   1      }
+  42          
+  43          
+  44          
+  45          
+  46          void Timer2_ISR(void) interrupt Timer_2_Overflow {
+  47   1        
+  48   1          TF2=0;
+  49   1        
+  50   1      
+  51   1        
+  52   1        
+  53   1          Switch_Get_Input(STOP_MASK ,&stop_button);
+  54   1          if(stop_button.sw_state==SW_HELD) // stop button
+C51 COMPILER V9.54   SEOS                                                                  12/15/2015 17:47:22 PAGE 2   
+
+  55   1          {
+  56   2              play_status_g = STOP;
+  57   2          }
+  58   1        
+  59   1          Switch_Get_Input(PLAY_MASK ,&play_button);
+  60   1          if(play_button.sw_state==SW_HELD)// PAUSE button
+  61   1          {
+  62   2              if(play_status_g ==PLAY) { // song playing
+  63   3                play_status_g = PAUSE; // pause song
+  64   3                send_val[0]=0x13;  // play register
+  65   3                send_val[1]=0x00;
+  66   3                I2C_Write(STA013,2,send_val);
+  67   3                send_val[0]=0x14;   // mute register
+  68   3                send_val[1]=0x00;
+  69   3                I2C_Write(STA013,2,send_val);
+  70   3              }
+  71   2              else {
+  72   3                play_status_g = PLAY;
+  73   3                send_val[0]=0x13;  // play register
+  74   3                send_val[1]=0x01;
+  75   3                I2C_Write(STA013,2,send_val);
+  76   3                send_val[0]=0x14;  // mute register
+  77   3                send_val[1]=0x00;
+  78   3                I2C_Write(STA013,2,send_val);
+  79   3                //START PLAY SONG
+  80   3              }
+  81   2          }
+  82   1          
+  83   1      //      if(play_status_g==PLAY){
+  84   1      //       time_g += (uint16_t)ISR_TICK;
+  85   1      //      }
+  86   1      
+  87   1          
+  88   1          if(state_g==LOAD_BUFFER_1)
+  89   1        {
+  90   2          if(sector_offset_g>=64)
+  91   2          {
+  92   3            state_g =FIND_CLUSTER_1;
+  93   3          }
+  94   2        }
+  95   1      
+  96   1        if(state_g==LOAD_BUFFER_2)
+  97   1        {
+  98   2          if(sector_offset_g>=64)
+  99   2          {
+ 100   3            state_g =FIND_CLUSTER_2;
+ 101   3          }
+ 102   2        }
+ 103   1      
+ 104   1      
+ 105   1        
+ 106   1        switch(state_g)
+ 107   1        {
+ 108   2        
+ 109   2         case DATA_IDLE_1:
+ 110   2         {
+ 111   3      
+ 112   3           GREENLED=OFF;REDLED=OFF;YELLOWLED=OFF;AMBERLED=OFF;
+ 113   3            TH0=(uint8_t)Timer_Reload_10ms_THx;
+ 114   3            TL0=(uint8_t)Timer_Reload_10ms_TLx;
+ 115   3      
+ 116   3            TF0=0;   // Clear overflow
+C51 COMPILER V9.54   SEOS                                                                  12/15/2015 17:47:22 PAGE 3   
+
+ 117   3            TR0=1;   // Start Timer Running
+ 118   3            while((DATA_REQ == INACTIVE ) && (TF0==0));
+ 119   3            TR0 = 0;  
+ 120   3            if(DATA_REQ == ACTIVE)
+ 121   3                  state_g = DATA_SEND_1;
+ 122   3            break;
+ 123   3         }
+ 124   2         
+ 125   2         case DATA_IDLE_2:
+ 126   2         {
+ 127   3          //  TMOD &=0xF0;
+ 128   3          //  TMOD |=0x01;
+ 129   3      
+ 130   3        //    ET0=0;  //interrupts not used
+ 131   3            //updataPlayTime();
+ 132   3      
+ 133   3            GREENLED=OFF;REDLED=OFF;YELLOWLED=OFF;AMBERLED=OFF;
+ 134   3            TH0=(uint8_t)Timer_Reload_10ms_THx;
+ 135   3            TL0=(uint8_t)Timer_Reload_10ms_TLx;
+ 136   3      
+ 137   3            TF0=0;   // Clear overflow
+ 138   3            TR0=1;   // Start Timer Running
+ 139   3      
+ 140   3            while((DATA_REQ == INACTIVE ) && (TF0==0));
+ 141   3            TR0 = 0;  
+ 142   3            if(DATA_REQ == ACTIVE)
+ 143   3                  state_g = DATA_SEND_2;
+ 144   3            else
+ 145   3                  state_g = DATA_IDLE_2;
+ 146   3            break;
+ 147   3           
+ 148   3         }
+ 149   2        
+ 150   2         case DATA_SEND_1:
+ 151   2         {    
+ 152   3           
+ 153   3               if(play_status_g == PLAY){
+ 154   4      
+ 155   4               TH0=(uint8_t)Timer_Reload_10ms_THx;
+ 156   4               TL0=(uint8_t)Timer_Reload_10ms_TLx;
+ 157   4      
+ 158   4               TF0=0;   // Clear overflow
+ 159   4               TR0=1;   // Start Timer Running
+ 160   4             
+ 161   4               BIT_EN =1;
+ 162   4               GREENLED=ON;REDLED=OFF;YELLOWLED=OFF;AMBERLED=OFF;
+ 163   4               while((DATA_REQ == ACTIVE ) && (TF0==0))
+ 164   4               {
+ 165   5            
+ 166   5            //     GREENLED=ON;
+ 167   5                 SPI_Transfer(buf1[index1], &temp8);
+ 168   5            //     GREENLED=OFF;
+ 169   5                 index1++;
+ 170   5                 if(index1>511) // Buffer1 Empty
+ 171   5                 {
+ 172   6                   if(index2>511) // Buffer2 Empty
+ 173   6                   {
+ 174   7                      if(play_status_g ==FINISH)
+ 175   7                      {
+ 176   8                        play_status_g=STOP;
+ 177   8                      }
+ 178   7                      else
+C51 COMPILER V9.54   SEOS                                                                  12/15/2015 17:47:22 PAGE 4   
+
+ 179   7                      {
+ 180   8                        
+ 181   8                        state_g = LOAD_BUFFER_2;
+ 182   8                        
+ 183   8                      }
+ 184   7                   }
+ 185   6                   else state_g = DATA_SEND_2;
+ 186   6                   TF0=1;  
+ 187   6                 }   
+ 188   5               }
+ 189   4               if(DATA_REQ == INACTIVE )
+ 190   4               {
+ 191   5                 if(index2>511)// Buffer2 Empty
+ 192   5                 {    state_g = LOAD_BUFFER_2;
+ 193   6                 }
+ 194   5                else state_g = DATA_IDLE_1;
+ 195   5               }
+ 196   4               TR0 = 0;  
+ 197   4               BIT_EN =0;
+ 198   4             }
+ 199   3               break;
+ 200   3        }
+ 201   2            
+ 202   2        case LOAD_BUFFER_1:
+ 203   2        { 
+ 204   3          GREENLED=OFF;REDLED=OFF;YELLOWLED=ON;AMBERLED=OFF;
+ 205   3          Read_Sector(sector_base_g+sector_offset_g,512,buf1);
+ 206   3          sector_offset_g++;
+ 207   3          index1=0;
+ 208   3          state_g = DATA_IDLE_2;
+ 209   3          
+ 210   3          break;
+ 211   3        }
+ 212   2        
+ 213   2        case FIND_CLUSTER_1:
+ 214   2        {
+ 215   3      
+ 216   3          cluster_g=Find_Next_Clus(cluster_g,buf1);
+ 217   3          GREENLED=OFF;REDLED=ON;YELLOWLED=OFF;AMBERLED=OFF;
+ 218   3          if(cluster_g == 0x0FFFFFFF){ // EOF Found
+ 219   4            play_status_g = FINISH;
+ 220   4            state_g = DATA_IDLE_2;
+ 221   4          }
+ 222   3          else{
+ 223   4      
+ 224   4            sector_base_g = First_Sector(cluster_g);
+ 225   4            sector_offset_g =0 ;
+ 226   4            state_g = DATA_IDLE_2;
+ 227   4          } 
+ 228   3          break;
+ 229   3        }
+ 230   2        
+ 231   2        case LOAD_BUFFER_2:
+ 232   2        { 
+ 233   3          GREENLED=OFF;REDLED=OFF;YELLOWLED=OFF;AMBERLED=ON;
+ 234   3      
+ 235   3          Read_Sector(sector_base_g+sector_offset_g, 512, buf2);
+ 236   3          sector_offset_g++;
+ 237   3          index2=0;
+ 238   3          state_g = DATA_IDLE_1;
+ 239   3      
+ 240   3          break;
+C51 COMPILER V9.54   SEOS                                                                  12/15/2015 17:47:22 PAGE 5   
+
+ 241   3        }
+ 242   2        
+ 243   2        case FIND_CLUSTER_2:
+ 244   2        {
+ 245   3          GREENLED=OFF;REDLED=ON;YELLOWLED=OFF;AMBERLED=OFF;
+ 246   3          cluster_g=Find_Next_Clus(cluster_g,buf2);
+ 247   3          if(cluster_g == 0x0FFFFFFF){ // EOF Found
+ 248   4            play_status_g = FINISH;
+ 249   4            state_g = DATA_IDLE_1;
+ 250   4          }
+ 251   3          else{
+ 252   4            sector_base_g = First_Sector(cluster_g);
+ 253   4            sector_offset_g =0 ;
+ 254   4            state_g = DATA_IDLE_1;  
+ 255   4          } 
+ 256   3          break;
+ 257   3        }
+ 258   2        
+ 259   2         case DATA_SEND_2:
+ 260   2         {  
+ 261   3               if(play_status_g == PLAY){
+ 262   4      
+ 263   4               TH0=(uint8_t)Timer_Reload_10ms_THx;
+ 264   4               TL0=(uint8_t)Timer_Reload_10ms_TLx;
+ 265   4      
+ 266   4               TF0=0;   // Clear overflow
+ 267   4               TR0=1;   // Start Timer Running
+ 268   4              GREENLED=ON;REDLED=OFF;YELLOWLED=OFF;AMBERLED=OFF;
+ 269   4               BIT_EN =1;
+ 270   4               while((DATA_REQ == ACTIVE ) && (TF0==0))
+ 271   4               {
+ 272   5      
+ 273   5                 SPI_Transfer(buf2[index2], &temp8);
+ 274   5      
+ 275   5                 index2++;
+ 276   5                 if(index2>511) // Buffer2 Empty
+ 277   5                 {
+ 278   6                   if(index1>511) // Buffer1 Empty
+ 279   6                   {
+ 280   7                      if(play_status_g ==FINISH)
+ 281   7                      {
+ 282   8                        play_status_g=STOP;
+ 283   8                      }
+ 284   7                      else
+ 285   7                      {                 
+ 286   8                        state_g = LOAD_BUFFER_1;                  
+ 287   8                      }
+ 288   7                   }
+ 289   6                   else state_g = DATA_SEND_1;
+ 290   6                   TF0=1;  
+ 291   6                 }   
+ 292   5               }
+ 293   4                 
+ 294   4               if(DATA_REQ == INACTIVE )
+ 295   4               {
+ 296   5                 if(index1>511)// Buffer2 Empty
+ 297   5                 {  state_g = LOAD_BUFFER_1;
+ 298   6                 }
+ 299   5                  else state_g = DATA_IDLE_2;
+ 300   5               }
+ 301   4                TR0 = 0; 
+ 302   4                BIT_EN =0;
+C51 COMPILER V9.54   SEOS                                                                  12/15/2015 17:47:22 PAGE 6   
+
+ 303   4             }
+ 304   3                break;
+ 305   3          }
+ 306   2        }
+ 307   1      
+ 308   1      
+ 309   1      }
+ 310          
+ 311          
+ 312          
+ 313          void Play_Song_State_Machine(uint32_t Start_Cluster)
+ 314          {
+ 315   1      
+ 316   1         cluster_g = Start_Cluster;
+ 317   1         sector_base_g=First_Sector(cluster_g);
+ 318   1         sector_offset_g=0;
+ 319   1         //P3_2=ON;
+ 320   1         YELLOWLED=ON;
+ 321   1         index1=0;
+ 322   1         
+ 323   1         Read_Sector(sector_base_g+sector_offset_g, 512, buf1);
+ 324   1      
+ 325   1         sector_offset_g++;
+ 326   1         YELLOWLED=OFF;
+ 327   1         AMBERLED=ON;
+ 328   1         index2=0;
+ 329   1         
+ 330   1         Read_Sector(sector_base_g+sector_offset_g, 512, buf2);
+ 331   1         sector_offset_g++;
+ 332   1         AMBERLED=OFF; 
+ 333   1      
+ 334   1          play_status_g = PLAY;
+ 335   1       
+ 336   1          state_g=DATA_IDLE_1;
+ 337   1         
+ 338   1          temp8=0;
+ 339   1          
+ 340   1          Switch_init();
+ 341   1          
+ 342   1      
+ 343   1          TMOD &=0xF0;
+ 344   1          TMOD |=0x01;
+ 345   1          ET0=0;  //interrupts not used
+ 346   1            
+ 347   1          Timer2_Interrupt_Init();
+ 348   1         while(1){
+ 349   2          if((play_status_g ==STOP) || (play_status_g ==FINISH))
+ 350   2          {
+ 351   3      
+ 352   3            ET2=0; // Disable Timer2 Interrupt
+ 353   3            EA=0;  // Disable Interrupt
+ 354   3            TR2=0;  //STOP Timer2
+ 355   3            break;   
+ 356   3          }
+ 357   2         }
+ 358   1         
+ 359   1       }
+ 360          
+ 361          
+ 362           
+ 363           
+ 364           
+C51 COMPILER V9.54   SEOS                                                                  12/15/2015 17:47:22 PAGE 7   
+
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1156    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     21    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

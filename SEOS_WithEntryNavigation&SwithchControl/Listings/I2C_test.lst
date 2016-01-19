@@ -1,0 +1,157 @@
+C51 COMPILER V9.54   I2C_TEST                                                              12/13/2015 02:29:45 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE I2C_TEST
+OBJECT MODULE PLACED IN .\Objects\I2C_test.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE I2C_test.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\
+                    -I2C_test.lst) TABS(2) OBJECT(.\Objects\I2C_test.obj)
+
+line level    source
+
+   1          #include "stdio.h"
+   2          #include "main.h"
+   3          #include "PORT.H"
+   4          #include "UART.h"
+   5          #include "print_bytes.h"
+   6          #include "SPI.h"
+   7          #include "SDcard.h"
+   8          #include "Long_Serial_In.h"
+   9          #include "Directory_Functions_struct.h"
+  10          #include "File_System_v2.h"
+  11          #include "STA013_Config.h"
+  12          #include "SEOS.h"
+  13          #include "LCD_Routines.h"
+  14          
+  15          uint8_t xdata buf1[512];
+  16          uint8_t xdata buf2[512];
+  17          
+  18          uint8_t xdata mp3_name[12];
+  19          
+  20          // Private Function Prototypes
+  21          //void Play_Song(uint32_t Start_Cluster);
+  22          
+  23          
+  24          main()
+  25          {
+  26   1         uint32_t  idata Current_directory, Entry_clus;
+  27   1         uint16_t  idata  i, num_entries, entry_num;
+  28   1         uint8_t   idata error_flag;
+  29   1         FS_values_t * Drive_p;
+  30   1      
+  31   1         AMBERLED=OFF;
+  32   1         YELLOWLED=OFF;
+  33   1         GREENLED=OFF;
+  34   1         REDLED = ON;
+  35   1         STA013_RESET=0;
+  36   1         i=0;
+  37   1         while(i<=60000) i++;
+  38   1         REDLED = OFF;
+  39   1         AUXR=0x0c;   // make all of XRAM available
+  40   1         if(OSC_PER_INST==6)
+  41   1         {
+  42   2            CKCON0=0x01;  // set X2 clock mode
+  43   2         }
+  44   1         else if(OSC_PER_INST==12)
+  45   1         {
+  46   2            CKCON0=0x00;  // set standard clock mode
+  47   2         } 
+  48   1         uart_init();
+  49   1         printf("I2C Test Program\n\r\n\n");
+  50   1         error_flag=SPI_Master_Init(400000UL);
+  51   1         if(error_flag!=no_errors)
+  52   1         {
+  53   2            REDLED=ON;
+  54   2            while(1);
+C51 COMPILER V9.54   I2C_TEST                                                              12/13/2015 02:29:45 PAGE 2   
+
+  55   2         }
+  56   1         printf("SD Card Initialization ... \n\r");
+  57   1         error_flag=SD_card_init();
+  58   1         if(error_flag!=no_errors)
+  59   1         {
+  60   2            REDLED=ON;
+  61   2            while(1);
+  62   2         }                        
+  63   1         error_flag=SPI_Master_Init(30000000UL);
+  64   1         if(error_flag!=no_errors)
+  65   1         {
+  66   2            REDLED=ON;
+  67   2            while(1);
+  68   2         }
+  69   1         for(i=0;i<512;i++)
+  70   1         {
+  71   2            buf1[i]=0xff;  // erase valout for debug
+  72   2            buf2[i]=0xff;
+  73   2         }
+  74   1         for(i=0;i<12;i++)
+  75   1         {
+  76   2            mp3_name[i]=0x00;  // erase valout for debug
+  77   2         }
+  78   1         error_flag=Mount_Drive(buf1);
+  79   1         if(error_flag!=no_errors)
+  80   1         {
+  81   2            REDLED=ON;
+  82   2            while(1);
+  83   2         }
+  84   1         Drive_p=Export_Drive_values();
+  85   1         Current_directory=Drive_p->FirstRootDirSec;
+  86   1         
+  87   1         
+  88   1            LCD_Init();
+  89   1         STA013_init();   
+  90   1         // Main Loop
+  91   1         while(1)
+  92   1         {
+  93   2           
+  94   2             printf("Directory Sector = %lu\n\r",Current_directory);
+  95   2             num_entries=Print_Directory(Current_directory, buf1);
+  96   2           printf("Enter Selection = ");
+  97   2             entry_num=(uint16_t)long_serial_input();
+  98   2           printf("Your Selection is  = %d , total = %d \n",entry_num,num_entries);
+  99   2           if(entry_num<=num_entries)
+ 100   2           {
+ 101   3              Entry_clus=Read_Dir_Entry(Current_directory, entry_num, buf1,mp3_name);
+ 102   3              printf("%lu, %s\n",Entry_clus,mp3_name);
+ 103   3            if(Entry_clus&directory_bit)
+ 104   3            {
+ 105   4               Entry_clus&=0x0FFFFFFF;
+ 106   4                   Current_directory=First_Sector(Entry_clus);
+ 107   4            }
+ 108   3             else
+ 109   3            {
+ 110   4               
+ 111   4               //Open_File(Entry_clus, buf1);
+ 112   4              Play_Song_Status_Machine(Entry_clus,mp3_name);
+ 113   4              // Play_Song_Loop(Entry_clus,mp3_name);
+ 114   4            }
+ 115   3            
+ 116   3           }
+C51 COMPILER V9.54   I2C_TEST                                                              12/13/2015 02:29:45 PAGE 3   
+
+ 117   2           else
+ 118   2           {
+ 119   3              printf("Invalid Selection\n\r");
+ 120   3           }  
+ 121   2           
+ 122   2           
+ 123   2         }
+ 124   1      } 
+ 125          
+ 126          
+ 127          
+ 128          
+*** WARNING C294 IN LINE 46 OF I2C_test.c: unreachable code
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    495    ----
+   CONSTANT SIZE    =    163    ----
+   XDATA SIZE       =   1036    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----      15
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

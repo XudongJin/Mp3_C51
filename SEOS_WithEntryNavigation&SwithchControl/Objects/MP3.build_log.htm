@@ -1,0 +1,76 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: µVision V5.14.2
+Copyright (C) 2015 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: 1 1, 11, LIC=X9FRA-1UZEX-80YN9-4SYBM-FJ8CP-A86Z3
+ 
+Tool Versions:
+Toolchain:       PK51 Prof. Developers Kit  Version: 9.54
+Toolchain Path:  C:\Keil_v5\C51\BIN
+C Compiler:      C51.exe V9.54
+Assembler:       A51.exe V8.02c
+Linker/Locator:  BL51.exe V6.22
+Library Manager: LIB51.exe V4.30.1.0
+Hex Converter:   OH51.exe V2.7.0.0
+CPU DLL:         S8051.DLL V3.100.0.0
+Dialog DLL:      DP51.DLL V2.62.0.1 
+<h2>Project:</h2>
+D:\I2C\MP3.uvproj
+Project File Date:  12/13/2015
+
+<h2>Output:</h2>
+Rebuild target 'Target 1'
+assembling STARTUP.A51...
+compiling UART.c...
+assembling config.asm...
+compiling SEOS.c...
+compiling Directory_Functions_struct.c...
+compiling File_System_v2.c...
+compiling I2C.c...
+compiling Read_Sector.c...
+compiling SDCard.c...
+compiling SPI.c...
+compiling STA013_config.c...
+compiling hardware_delay.c...
+compiling LCD_routines.c...
+compiling SEOS_test.c...
+SEOS_test.c(45): warning C294: unreachable code
+compiling Switch.c...
+linking...
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_I2C_WRITE?I2C
+    CALLER1: ?C_C51STARTUP
+    CALLER2: ?PR?TIMER2_ISR?SEOS
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_READ_SECTOR?READ_SECTOR
+    CALLER1: ?C_C51STARTUP
+    CALLER2: ?PR?TIMER2_ISR?SEOS
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_SEND_COMMAND?SDCARD
+    CALLER1: ?C_C51STARTUP
+    CALLER2: ?PR?TIMER2_ISR?SEOS
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_READ_BLOCK?SDCARD
+    CALLER1: ?C_C51STARTUP
+    CALLER2: ?PR?TIMER2_ISR?SEOS
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_READ32?FILE_SYSTEM_V2
+    CALLER1: ?C_C51STARTUP
+    CALLER2: ?PR?TIMER2_ISR?SEOS
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_READ16?FILE_SYSTEM_V2
+    CALLER1: ?C_C51STARTUP
+    CALLER2: ?PR?TIMER2_ISR?SEOS
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_FIRST_SECTOR?FILE_SYSTEM_V2
+    CALLER1: ?C_C51STARTUP
+    CALLER2: ?PR?TIMER2_ISR?SEOS
+Program Size: data=214.2 xdata=1024 code=16286
+creating hex file from ".\Objects\MP3"...
+".\Objects\MP3" - 0 Error(s), 8 Warning(s).
+</pre>
+</body>
+</html>

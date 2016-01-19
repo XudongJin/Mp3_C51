@@ -1,0 +1,458 @@
+C51 COMPILER V9.54   DIRECTORY_FUNCTIONS_STRUCT                                            12/15/2015 17:47:22 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE DIRECTORY_FUNCTIONS_STRUCT
+OBJECT MODULE PLACED IN .\Objects\Directory_Functions_struct.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE Directory_Functions_struct.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND
+                    - PRINT(.\Listings\Directory_Functions_struct.lst) TABS(2) OBJECT(.\Objects\Directory_Functions_struct.obj)
+
+line level    source
+
+   1          #include "AT89C51RC2.h"
+   2          #include <stdio.h>
+   3          #include <stdlib.h>
+   4          #include "main.h"
+   5          #include "PORT.H"
+   6          #include "UART.h"
+   7          #include "SPI.h"
+   8          #include "SDCard.h"
+   9          #include "File_System_v2.h"
+  10          #include "print_bytes.h"
+  11          #include "Directory_Functions_struct.h"
+  12          #include "Read_Sector.h"
+  13          
+  14          
+  15          
+  16          FS_values_t idata Drive_values;
+  17          
+  18          /***********************************************************************
+  19          DESC: Returns a pointer to the global structure Drive_values to export to other files
+  20          INPUT: void
+  21          RETURNS: Pointer to the structure Drive_values
+  22          CAUTION: 
+  23          ************************************************************************/
+  24          
+  25          FS_values_t * Export_Drive_values(void)
+  26          {
+  27   1         return &Drive_values;
+  28   1      }
+  29          
+  30          
+  31          /***********************************************************************
+  32          DESC: Returns a pointer to the global structure Drive_values to export to other files
+  33          INPUT: void
+  34          RETURNS: Pointer to the structure Drive_values
+  35          CAUTION: 
+  36          ************************************************************************/
+  37          //name is store as unicode ,so a character occupy two types
+  38          //uint16_t  Print_LongFile(uint16_t i, uint8_t * array_in,uint16_t entries,uint32_t * sector_p){
+  39          //  
+  40          //  uint16_t index;
+  41          //  uint16_t total_entries,out_val_long,j,offset;
+  42          //  uint8_t temp8,file_attr;
+  43          //  uint8_t * values;
+  44          //  uint32_t Sector;
+  45          //  bool   next_sector;
+  46          
+  47          //  values=array_in;
+  48          //  Sector=*sector_p;
+  49          //  
+  50          //   temp8=read8(0+i,values);  // read first byte to see if this is the last entry for long name
+  51          //   if((temp8&0x40)==0x40){
+  52          //     total_entries=temp8&0x1F;
+  53          //    // printf("total_entries=%d\n",total_entries);   
+  54          //     if((i+total_entries*32)>510)
+C51 COMPILER V9.54   DIRECTORY_FUNCTIONS_STRUCT                                            12/15/2015 17:47:22 PAGE 2   
+
+  55          //     {
+  56          //          Read_Sector(Sector+1,Drive_values.BytesPerSec,values);
+  57          //         //  i=((i+total_entries*32)-512)/32
+  58          //          file_attr=read8(0x0b+((i+total_entries*32)-512),values);
+  59          //          next_sector=true;
+  60          //     }else{
+  61          //         file_attr=read8(0x0b+i+total_entries*32,values);  
+  62          //         next_sector=false;
+  63          //     }
+  64          //     
+  65          //     
+  66          //     if((file_attr&0x0E)==0)   // if hidden, system or Vol_ID bit is set do not print
+  67          //     {
+  68          //         printf("%5d. ",entries+1);  // print entry number with a fixed width specifier
+  69          //        for(index=0;index<total_entries;++index){
+  70          //          
+  71          //            if(((i+(total_entries-1-index)*32)>510))
+  72          //           {
+  73          //                if(next_sector==false)
+  74          //                {
+  75          //                  Read_Sector(Sector+1,Drive_values.BytesPerSec,values);
+  76          //                  next_sector=true;
+  77          //                }               
+  78          //                offset=(i+(total_entries-1-index)*32)-512;
+  79          //                
+  80          //           }else{
+  81          
+  82          //               if(next_sector==true)
+  83          //               {   Read_Sector(Sector,Drive_values.BytesPerSec,values);
+  84          //                   next_sector=false;
+  85          //               }
+  86          //               offset=(i+(total_entries-1-index)*32);
+  87          //           }
+  88          //     
+  89          //        temp8=read8(0x0b+offset,values);      
+  90          //        if(temp8==0x0F){     
+  91          //        for(j=1;j<10;)
+  92          //        {
+  93          //           out_val_long=read16(offset+j,values);   // print the 8 byte name     
+  94          //           if(out_val_long==0x0000)break;
+  95          //           putchar(out_val_long);
+  96          //           j+=2;
+  97          //        }
+  98          //        if(out_val_long==0x0000)break;
+  99          //        for(j=14;j<25;)
+ 100          //        {
+ 101          //           out_val_long=read16(offset+j,values);   // print the 8 byte name
+ 102          //           if(out_val_long==0x0000)break;
+ 103          //           putchar(out_val_long);
+ 104          //           j+=2;
+ 105          //        }
+ 106          //        if(out_val_long==0x0000)break;
+ 107          //        for(j=28;j<31;)
+ 108          //        {
+ 109          //           out_val_long=read16(offset+j,values);   // print the 8 byte name
+ 110          //           if(out_val_long==0x0000)break;
+ 111          //           putchar(out_val_long);
+ 112          //           j+=2;
+ 113          //        } 
+ 114          //        
+ 115          //      }else
+ 116          //        printf("Print Long File Name Error 0!%bu\n",temp8);
+C51 COMPILER V9.54   DIRECTORY_FUNCTIONS_STRUCT                                            12/15/2015 17:47:22 PAGE 3   
+
+ 117          //      }
+ 118          //         
+ 119          //     }
+ 120          //     
+ 121          //     
+ 122          //     if((i+total_entries*32)>510)
+ 123          //     {
+ 124          //          (*sector_p)=Sector+1;
+ 125          //          Read_Sector(Sector+1,Drive_values.BytesPerSec,values);
+ 126          //          return ((i+total_entries*32)-512);   
+ 127          //     }else{
+ 128          //          return i+total_entries*32; 
+ 129          //     }
+ 130          //   }
+ 131          //   else
+ 132          //   {
+ 133          //     printf("Print Long File Name Error!%2.2bX,%2.2bX,%p\n",temp8,temp8&0x40,i+values);
+ 134          //     return i;
+ 135          //   }    
+ 136          //}
+ 137          
+ 138          /***********************************************************************
+ 139          DESC: Prints all short file name entries for a given directory 
+ 140          INPUT: Starting Sector of the directory and the pointer to a 
+ 141          block of memory in xdata that can be used to read blocks from the SD card
+ 142          RETURNS: uint16_t number of entries found in the directory
+ 143          CAUTION: Supports FAT16, SD_shift must be set before using this function
+ 144          ************************************************************************/
+ 145          
+ 146          
+ 147          
+ 148          uint16_t  Print_Directory(uint32_t Sector_num, uint8_t xdata * array_in)
+ 149          { 
+ 150   1         uint32_t idata Sector, max_sectors, file_size;
+ 151   1         uint16_t idata i, entries;
+ 152   1         uint8_t idata temp8, j, attr, out_val, error_flag;
+ 153   1         uint8_t xdata * values;
+ 154   1         bool Is_longfile;
+ 155   1        
+ 156   1      
+ 157   1         values=array_in;
+ 158   1         entries=0;
+ 159   1         file_size=0;
+ 160   1         i=0;
+ 161   1         if (Drive_values.FATtype==FAT16)  // included for FAT16 compatibility
+ 162   1         { 
+ 163   2            max_sectors=Drive_values.RootDirSecs;   // maximum sectors in a FAT16 root directory
+ 164   2         }
+ 165   1         else
+ 166   1         {
+ 167   2            max_sectors=Drive_values.SecPerClus;
+ 168   2         }
+ 169   1         Sector=Sector_num;
+ 170   1         error_flag=Read_Sector(Sector,Drive_values.BytesPerSec,values);
+ 171   1         if(error_flag==no_errors)
+ 172   1         {
+ 173   2           do
+ 174   2           {
+ 175   3             
+ 176   3      //        temp8=read8(0x0b+i,values);
+ 177   3      //        if(temp8==0x0F){          
+ 178   3      //         i=Print_LongFile(i,values,entries,&Sector); 
+C51 COMPILER V9.54   DIRECTORY_FUNCTIONS_STRUCT                                            12/15/2015 17:47:22 PAGE 4   
+
+ 179   3      //         Is_longfile=true;
+ 180   3      //        }else Is_longfile=false;  
+ 181   3              Is_longfile=false;
+ 182   3              temp8=read8(0+i,values);  // read first byte to see if empty
+ 183   3              if((temp8!=0xE5)&&(temp8!=0x00))
+ 184   3            {  
+ 185   4               attr=read8(0x0b+i,values);
+ 186   4             if((attr&0x0E)==0)   // if hidden, system or Vol_ID bit is set do not print
+ 187   4             {
+ 188   5                entries++;
+ 189   5              if(Is_longfile==false){ 
+ 190   6                  printf("%5d. ",entries);  // print entry number with a fixed width specifier
+ 191   6                    for(j=0;j<8;j++)
+ 192   6                  {
+ 193   7                    out_val=read8(i+j,values);   // print the 8 byte name
+ 194   7                    putchar(out_val);
+ 195   7                  }
+ 196   6                }
+ 197   5               if((attr&0x10)==0x10)  // indicates directory
+ 198   5              {
+ 199   6                if(Is_longfile==false){
+ 200   7                 for(j=8;j<11;j++)
+ 201   7                 {
+ 202   8                    out_val=read8(i+j,values);
+ 203   8                    putchar(out_val);
+ 204   8                 }
+ 205   7                }
+ 206   6                 printf("[DIR]\n");
+ 207   6              }
+ 208   5              else       // print a period and the three byte extension for a file
+ 209   5              {
+ 210   6                 if(Is_longfile==false){
+ 211   7                 putchar(0x2E);       
+ 212   7                 for(j=8;j<11;j++)
+ 213   7                 {
+ 214   8                    out_val=read8(i+j,values);
+ 215   8                    putchar(out_val);
+ 216   8                 }
+ 217   7                }
+ 218   6                 file_size=read8(31+i,values);
+ 219   6                      
+ 220   6                 file_size=file_size<<8;
+ 221   6                      
+ 222   6                 file_size|=read8(30+i,values);
+ 223   6                      
+ 224   6                 file_size=file_size<<8;
+ 225   6                      
+ 226   6                 file_size|=read8(29+i,values);
+ 227   6                      
+ 228   6                 file_size=file_size<<8;
+ 229   6                      
+ 230   6                 file_size|=read8(28+i,values);
+ 231   6                 printf("           File Size:%lu Bytes",file_size);
+ 232   6                 putchar(0x0d);
+ 233   6                       putchar(0x0a);
+ 234   6              }
+ 235   5              }
+ 236   4          }
+ 237   3              i=i+32;  // next entry
+ 238   3              if(i>510)
+ 239   3              {
+ 240   4              Sector++;
+C51 COMPILER V9.54   DIRECTORY_FUNCTIONS_STRUCT                                            12/15/2015 17:47:22 PAGE 5   
+
+ 241   4                    if((Sector-Sector_num)<max_sectors)
+ 242   4              {
+ 243   5                       error_flag=Read_Sector(Sector,Drive_values.BytesPerSec,values);
+ 244   5                 if(error_flag!=no_errors)
+ 245   5                 {
+ 246   6                    entries=0;   // no entries found indicates disk read error
+ 247   6                  temp8=0;     // forces a function exit
+ 248   6                 }
+ 249   5                       i=0;
+ 250   5              }
+ 251   4              else
+ 252   4              {
+ 253   5                 entries=entries|more_entries;  // set msb to indicate more entries in another cluster
+ 254   5                 temp8=0;                       // forces a function exit
+ 255   5              }
+ 256   4              }
+ 257   3               
+ 258   3          }while(temp8!=0);
+ 259   2        }
+ 260   1        else
+ 261   1        {
+ 262   2           entries=0;    // no entries found indicates disk read error
+ 263   2        }
+ 264   1         return entries;
+ 265   1       }
+ 266          
+ 267          
+ 268          /***********************************************************************
+ 269          DESC: Uses the same method as Print_Directory to locate short file names,
+ 270                but locates a specified entry and returns and cluster  
+ 271          INPUT: Starting Sector of the directory, an entry number and a pointer to a 
+ 272          block of memory in xdata that can be used to read blocks from the SD card
+ 273          RETURNS: uint32_t with cluster in lower 28 bits.  Bit 28 set if this is 
+ 274                   a directory entry, clear for a file.  Bit 31 set for error.
+ 275          CAUTION: 
+ 276          ************************************************************************/
+ 277          
+ 278          uint32_t Read_Dir_Entry(uint32_t Sector_num, uint16_t Entry, uint8_t xdata * array_in ,uint8_t  * mp3_name
+             -,uint8_t  * file_attr)
+ 279          { 
+ 280   1         uint32_t idata Sector, max_sectors, return_clus, file_size;
+ 281   1         uint16_t idata i, j,entries;
+ 282   1         uint8_t  idata temp8, attr,error_flag;
+ 283   1         uint8_t xdata * values;
+ 284   1      
+ 285   1         values=array_in;
+ 286   1         entries=0;
+ 287   1         i=0;
+ 288   1         return_clus=0;
+ 289   1         if (Drive_values.FATtype==FAT16)  // included for FAT16 compatibility
+ 290   1         { 
+ 291   2            max_sectors=Drive_values.RootDirSecs;   // maximum sectors in a FAT16 root directory
+ 292   2         }
+ 293   1         else
+ 294   1         {
+ 295   2            max_sectors=Drive_values.SecPerClus;
+ 296   2         }
+ 297   1         Sector=Sector_num;
+ 298   1         error_flag=Read_Sector(Sector,Drive_values.BytesPerSec,values);
+ 299   1         if(error_flag==no_errors)
+ 300   1         {
+ 301   2           do
+C51 COMPILER V9.54   DIRECTORY_FUNCTIONS_STRUCT                                            12/15/2015 17:47:22 PAGE 6   
+
+ 302   2           {
+ 303   3              temp8=read8(0+i,values);  // read first byte to see if empty
+ 304   3              if((temp8!=0xE5)&&(temp8!=0x00))
+ 305   3            {  
+ 306   4               attr=read8(0x0b+i,values);
+ 307   4             if((attr&0x0E)==0)    // if hidden do not print
+ 308   4             {
+ 309   5                entries++;
+ 310   5                    if(entries==Entry)
+ 311   5                    {
+ 312   6                if(Drive_values.FATtype==FAT32)
+ 313   6                      {
+ 314   7                         return_clus=read8(21+i,values);
+ 315   7                         return_clus=return_clus<<8;
+ 316   7                         return_clus|=read8(20+i,values);
+ 317   7                         return_clus=return_clus<<8;
+ 318   7                      }
+ 319   6                      return_clus|=read8(27+i,values);
+ 320   6                      return_clus=return_clus<<8;
+ 321   6                      return_clus|=read8(26+i,values);
+ 322   6      
+ 323   6                      
+ 324   6                      for(j=0;j<16;j++)
+ 325   6                      file_attr[j]=0x20;
+ 326   6                      mp3_name[0]   = (uint8_t)(((Entry>>8)&0xff)+0x30);
+ 327   6                      mp3_name[1]   =(uint8_t)((Entry &0xff)+0x30);
+ 328   6                      mp3_name[2]   ='.';
+ 329   6                      
+ 330   6                      attr=read8(0x0b+i,values);
+ 331   6                      if(attr&0x10){
+ 332   7                        return_clus|=directory_bit;
+ 333   7                        for(j=0;j<8;j++)
+ 334   7                        {
+ 335   8                        // print the 8 byte name
+ 336   8                          mp3_name[j+3]=read8(i+j,values);  
+ 337   8                        } 
+ 338   7                        for(j=8;j<11;j++)
+ 339   7                        {
+ 340   8                          mp3_name[j+3]=read8(i+j,values);  
+ 341   8                        }
+ 342   7                          mp3_name[j+3]=0x20;  
+ 343   7                          mp3_name[j+4]=0x20; 
+ 344   7                                        
+ 345   7                       file_attr[0]='D';                             
+ 346   7                       file_attr[1]='I';           
+ 347   7                       file_attr[2]='R';              
+ 348   7                    }
+ 349   6                      else
+ 350   6                      {
+ 351   7                      for(j=0;j<8;j++)
+ 352   7                      {
+ 353   8                        // print the 8 byte name
+ 354   8                        mp3_name[j+3]=read8(i+j,values);  
+ 355   8                      }
+ 356   7                      mp3_name[j+3]=0x2E;      
+ 357   7                      for(j=8;j<11;j++)
+ 358   7                      {
+ 359   8                        mp3_name[j+4]=read8(i+j,values);  
+ 360   8                      }
+ 361   7                       mp3_name[j+4]=0x20; 
+ 362   7                      
+ 363   7                       file_size=read8(31+i,values);
+C51 COMPILER V9.54   DIRECTORY_FUNCTIONS_STRUCT                                            12/15/2015 17:47:22 PAGE 7   
+
+ 364   7                      
+ 365   7                       file_size=file_size<<8;
+ 366   7                      
+ 367   7                       file_size|=read8(30+i,values);
+ 368   7                      
+ 369   7                       file_size=file_size<<8;
+ 370   7                      
+ 371   7                       file_size|=read8(29+i,values);
+ 372   7                      
+ 373   7                       file_size=file_size<<8;
+ 374   7                      
+ 375   7                       file_size|=read8(28+i,values);
+ 376   7                       sprintf(file_attr, "%lu", file_size); 
+ 377   7                       file_attr[11]='B';
+ 378   7                       file_attr[12]='Y';
+ 379   7                       file_attr[13]='T'; 
+ 380   7                       file_attr[14]='E'; 
+ 381   7                       file_attr[15]='S';               
+ 382   7                      }
+ 383   6                      temp8=0;    // forces a function exit
+ 384   6                    }
+ 385   5                    
+ 386   5              }
+ 387   4          }
+ 388   3              i=i+32;  // next entry
+ 389   3              if(i>510)
+ 390   3              {
+ 391   4              Sector++;
+ 392   4              if((Sector-Sector_num)<max_sectors)
+ 393   4              {
+ 394   5                       error_flag=Read_Sector(Sector,Drive_values.BytesPerSec,values);
+ 395   5                 if(error_flag!=no_errors)
+ 396   5                 {
+ 397   6                     return_clus=no_entry_found;
+ 398   6                           temp8=0; 
+ 399   6                 }
+ 400   5                 i=0;
+ 401   5              }
+ 402   4              else
+ 403   4              {
+ 404   5                 temp8=0;                       // forces a function exit
+ 405   5              }
+ 406   4              }
+ 407   3               
+ 408   3          }while(temp8!=0);
+ 409   2        }
+ 410   1        else
+ 411   1        {
+ 412   2           return_clus=no_entry_found;
+ 413   2        }
+ 414   1        if(return_clus==0) return_clus=no_entry_found;
+ 415   1         return return_clus;
+ 416   1       }
+ 417          
+ 418          
+ 419          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2268    ----
+   CONSTANT SIZE    =     48    ----
+   XDATA SIZE       =   ----    ----
+C51 COMPILER V9.54   DIRECTORY_FUNCTIONS_STRUCT                                            12/15/2015 17:47:22 PAGE 8   
+
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      24
+   IDATA SIZE       =     22      46
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
